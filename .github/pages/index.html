@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Earthrise Thesis</title>
+    <meta
+      name="description"
+      content="Template document of Earthrise Thesis, a Typst template for doctoral theses. Digital and print editions."
+    />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --text: #1d1d1f;
+        --muted: #5f6368;
+        --line: #d9dce1;
+        --card: #ffffff;
+        --page: #f5f6f8;
+        --accent: #0077a8;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --text: #ececee;
+          --muted: #a6a9ad;
+          --line: #3a3d42;
+          --card: #1f2124;
+          --page: #141517;
+          --accent: #00a4e1;
+        }
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; }
+      body {
+        background: var(--page);
+        color: var(--text);
+        font: 17px/1.55 "EB Garamond", Garamond, Georgia, "Times New Roman", serif;
+      }
+      main { max-width: 46rem; margin: 0 auto; padding: 4rem 1.5rem 3rem; }
+      .kicker {
+        margin: 0 0 1.25rem;
+        color: var(--muted);
+        font-size: 0.8rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      h1 { margin: 0; font-size: 2.4rem; line-height: 1.15; }
+      .subtitle { margin: 0.35rem 0 2.5rem; font-size: 1.45rem; color: var(--muted); }
+      .editions { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); }
+      .edition {
+        display: block;
+        padding: 1.25rem 1.4rem;
+        border: 1px solid var(--line);
+        border-top: 3px solid var(--accent);
+        border-radius: 6px;
+        background: var(--card);
+        color: inherit;
+        text-decoration: none;
+      }
+      .edition:hover, .edition:focus-visible { border-color: var(--accent); }
+      .edition h2 { margin: 0 0 0.4rem; font-size: 1.3rem; }
+      .edition p { margin: 0; color: var(--muted); }
+      section { margin-top: 2.5rem; }
+      section h2 { margin: 0 0 0.5rem; font-size: 1.05rem; }
+      section ol { margin: 0 0 0.75rem; padding-left: 1.4rem; }
+      section p { margin: 0; }
+      code { font: 0.85em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      a { color: var(--accent); }
+      footer { margin-top: 3rem; color: var(--muted); font-size: 0.85rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="kicker">Typst template &middot; Doctoral thesis &middot; Print and digital editions</p>
+      <h1>Earthrise Thesis</h1>
+      <p class="subtitle">Template document, built from the latest commit</p>
+
+      <div class="editions">
+        <a class="edition" href="thesis.pdf">
+          <h2>Digital edition</h2>
+          <p>Symmetric margins, no blank pages</p>
+        </a>
+        <a class="edition" href="thesis_print.pdf">
+          <h2>Print edition</h2>
+          <p>Mirrored margins, chapters open on right</p>
+        </a>
+      </div>
+
+      <section>
+        <h2>Use it</h2>
+        <ol>
+          <li>Create a project: <code>typst init @preview/earthrise-thesis:0.1.0 my-thesis</code></li>
+          <li>Replace the placeholders in <code>thesis.typ</code></li>
+          <li>Compile it: <code>typst watch --font-path fonts thesis.typ</code></li>
+        </ol>
+        <p>The <a href="https://github.com/AndrejOrsula/earthrise_thesis_template#readme">README</a> explains the fonts, every parameter and reproducible builds. Setup takes about 2 minutes.</p>
+      </section>
+
+      <section>
+        <h2>Examples</h2>
+        <a class="edition" href="https://andrejorsula.github.io/phd_thesis">
+          <h2>Robot Learning Beyond Earth: Enabling Adaptive Autonomy in Space</h2>
+          <p>Andrej Orsula, University of Luxembourg</p>
+        </a>
+      </section>
+
+      <footer>
+        Built from <a href="https://github.com/AndrejOrsula/earthrise_thesis_template">github.com/AndrejOrsula/earthrise_thesis_template</a>
+        at <a href="https://github.com/AndrejOrsula/earthrise_thesis_template/commit/{{REVISION}}">{{REVISION_SHORT}}</a>.
+      </footer>
+    </main>
+  </body>
+</html>

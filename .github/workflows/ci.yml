@@ -1,0 +1,167 @@
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: "${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}"
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  TYPST_VERSION: "0.15.1"
+  TYPST_SHA256: "a6d077d0a95eed5a2eba715b2dae06be954f624ccbf85758a03f389ded33118c"
+  UV_VERSION: "0.8.24"
+  PRE_COMMIT_VERSION: "4.6.2"
+  NO_COLOR: "1"
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out the template
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - &setup-uv
+        name: Set up uv
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      - name: Cache the pre-commit environments
+        uses: actions/cache@v6.1.0
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+      - name: Run the pre-commit hooks
+        run: uvx "pre-commit@$PRE_COMMIT_VERSION" run --all-files --show-diff-on-failure
+
+  build:
+    if: >-
+      ${{ !(github.repository == 'AndrejOrsula/earthrise_thesis_template' &&
+            (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+            github.ref == 'refs/heads/main') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      TYPST_PACKAGE_CACHE_PATH: "${{ github.workspace }}/.cache/typst-packages"
+    steps:
+      - &checkout
+        name: Check out the template
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - &install-typst
+        name: Install pinned Typst
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/typst"
+          mkdir -p "$dir"
+          curl -fsSL --retry 3 -o "$dir/typst.tar.xz" \
+            "https://github.com/typst/typst/releases/download/v$TYPST_VERSION/typst-x86_64-unknown-linux-musl.tar.xz"
+          echo "$TYPST_SHA256  $dir/typst.tar.xz" | sha256sum --check --quiet
+          tar -xJf "$dir/typst.tar.xz" -C "$dir" --strip-components=1
+          "$dir/typst" --version
+          echo "$dir" >> "$GITHUB_PATH"
+      - *setup-uv
+      - &cache-build
+        name: Cache the pinned fonts and Typst packages
+        uses: actions/cache@v6.1.0
+        with:
+          path: |
+            .fonts
+            .cache/typst-packages
+          key: >-
+            build-${{ runner.os }}-${{
+            hashFiles('tools/fetch_fonts.py', 'lib.typ', 'modules/*.typ', 'template/utils/*.typ') }}
+
+      - &build-editions
+        name: Build the example in both editions
+        run: |
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" \
+            uv run --no-project --script tools/build.py template/thesis.typ \
+            --root . \
+            --out-dir build \
+            --optimize \
+            --local-package .
+      - &build-site
+        name: Assemble the site
+        run: |
+          set -euo pipefail
+          rm -rf dist
+          mkdir dist
+          cp build/thesis.pdf build/thesis_print.pdf dist/
+          sed -e "s/{{REVISION}}/$GITHUB_SHA/g" -e "s/{{REVISION_SHORT}}/${GITHUB_SHA::7}/g" \
+            .github/pages/index.html >dist/index.html
+          if grep -q '{{' dist/index.html; then
+            echo "dist/index.html has unfilled placeholders" >&2
+            exit 1
+          fi
+          ls -l dist
+
+  publish:
+    if: >-
+      ${{ github.repository == 'AndrejOrsula/earthrise_thesis_template' &&
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+          github.ref == 'refs/heads/main' }}
+    needs: lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      TYPST_PACKAGE_CACHE_PATH: "${{ github.workspace }}/.cache/typst-packages"
+    steps:
+      - *checkout
+      - *install-typst
+      - *setup-uv
+      - *cache-build
+      - *build-editions
+      - *build-site
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v5.0.0
+        with:
+          path: dist
+      - name: Deploy the site to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5.0.1
+
+      - name: Wait for GitHub Pages to serve the site
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          url="${PAGE_URL%/}"
+          live() {
+            local page file
+            page="$(curl -fsSL "$url/?revision=$GITHUB_SHA")" || return 1
+            [[ "$page" == *"$GITHUB_SHA"* ]] || return 1
+            for file in dist/*.pdf; do
+              [ "$(curl -fsSL "$url/${file#dist/}?revision=$GITHUB_SHA" | sha256sum)" = \
+                "$(sha256sum <"$file")" ] || return 1
+            done
+          }
+          for _ in $(seq 60); do
+            if live; then
+              echo "Live at $url/"
+              echo "Published at <$url/>" >>"$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "$url/ does not serve $GITHUB_SHA after 10 minutes; check that Settings > Pages deploys from GitHub Actions" >&2
+          exit 1
