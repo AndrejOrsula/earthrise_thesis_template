@@ -87,6 +87,15 @@ def catalog_shape(doc: pymupdf.Document) -> dict[str, str]:
     return {key: doc.xref_get_key(catalog, key)[0] for key in CATALOG_KEYS}
 
 
+def outline(doc: pymupdf.Document) -> list[list]:
+    # Saving with garbage collection renumbers objects, so the xref of each
+    # bookmark is not part of the tree a reader sees.
+    return [
+        [*entry[:3], {key: value for key, value in entry[3].items() if key != "xref"}]
+        for entry in doc.get_toc(simple=False)
+    ]
+
+
 def link_summary(page: pymupdf.Page) -> list[tuple]:
     summary = []
     for link in page.get_links():
@@ -186,7 +195,7 @@ def compare(
                 if before[key] != "null" and after[key] == "null":
                     failures.append(Failure("catalog", f"/{key} was dropped"))
 
-            if original.get_toc(simple=False) != optimized.get_toc(simple=False):
+            if outline(original) != outline(optimized):
                 failures.append(Failure("outline", "the bookmark tree changed"))
 
             for field in ("title", "author", "subject", "keywords"):
