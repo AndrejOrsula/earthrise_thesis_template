@@ -408,7 +408,7 @@
   )
 
   set page(paper: "a4", margin: if physical-copy {
-    (bottom: 40mm, top: 35mm, inside: 25mm, outside: 35mm)
+    (bottom: 40mm, top: 35mm, inside: 35mm, outside: 25mm)
   } else {
     (bottom: 40mm, top: 35mm, x: 30mm)
   })
